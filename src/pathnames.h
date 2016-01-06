@@ -26,5 +26,7 @@
 /* Lua imapfilter auxiliary functions file. */
 #define PATHNAME_AUXILIARY		CONFIG_SHAREDIR "/auxiliary.lua"
 
+/* Lua imapfilter history file. */
+#define PATHNAME_HISTORY_FILE	CONFIG_SHAREDIR "/.history.txt"
 
 #endif				/* PATHNAMES_H */

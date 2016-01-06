@@ -9,6 +9,9 @@
 #include "imapfilter.h"
 #include "pathnames.h"
 
+#ifdef VERSION_LINENOISE
+	#include <linenoise.h>
+#endif
 
 extern options opts;
 extern struct sessionhead sessions;
@@ -144,7 +147,9 @@ init_options(void)
 	set_table_boolean("subscribe", 0);
 	set_table_number("timeout", 60);
 	set_table_boolean("wakeonany", 0);
-
+	set_table_string("history_file", PATHNAME_HISTORY_FILE);
+	set_table_number("history_length",1000);
+	set_table_boolean("interactive_multi_line",1);
 	lua_setglobal(lua, "options");
 }
 
@@ -156,15 +161,47 @@ void
 interactive_mode(void)
 {
 	char buf[LINE_MAX];
-	
-	for (;;) {
-		printf("> ");
-		fflush(stdout);
+#ifdef VERSION_LINENOISE
+	char* line;
+	const char *history_file=NULL;
+	lua_Number history_length;
 
-		if (fgets(buf, sizeof(buf), stdin) == NULL) {
-			printf("\n");
-			break;
-		}
+	if ((history_length=get_option_number("history_length"))>=0)
+	{
+		linenoiseHistorySetMaxLen(history_length);
+		history_file=get_option_string("history_file");
+		if (!history_file)
+			history_file=PATHNAME_HISTORY_FILE;
+		linenoiseHistoryLoad(history_file);
+	}
+
+	//if(get_option_boolean("interactive_multi_line"))
+	//	linenoiseSetMultiLine(1);
+#endif
+
+	for (;;) {
+		#ifdef VERSION_LINENOISE
+			if (((line=linenoise("> "))==NULL) || (buf[0]=='\0'))
+			{
+				printf("\n");
+				break;
+			}
+			if (history_length>0)
+			{
+				linenoiseHistoryAdd(line);
+				linenoiseHistorySave(history_file);
+			}
+			xstrncpy(buf,line,sizeof(buf));
+			free(line);
+		#else
+			printf("> ");
+			fflush(stdout);
+
+			if (fgets(buf, sizeof(buf), stdin) == NULL) {
+				printf("\n");
+				break;
+			}
+		#endif
 
 		if (luaL_loadbuffer(lua, buf, strlen(buf), "=<line>") ||
 		    lua_pcall(lua, 0, LUA_MULTRET, 0)) {
